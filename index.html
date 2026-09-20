@@ -1,0 +1,1218 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>보정사진 함께 비교하기</title>
+  <meta name="robots" content="noindex,nofollow">
+  <style>
+    :root {
+      --ink: #1b1917;
+      --surface: #24201d;
+      --surface-raised: #2b2723;
+      --stage: #151311;
+      --stage-raised: #1e1a17;
+      --line: #4b433b;
+      --line-quiet: #37312c;
+      --text: #f0e9de;
+      --muted: #b8aea1;
+      --faint: #9b9186;
+      --amber: #d3a066;
+      --amber-soft: #f1cf9e;
+      --space-1: 4px;
+      --space-2: 8px;
+      --space-3: 12px;
+      --space-4: 16px;
+      --space-5: 20px;
+      --space-6: 24px;
+      --space-8: 32px;
+      --space-10: 40px;
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      background: var(--ink);
+      color: var(--text);
+      font-family: "Malgun Gothic", "Segoe UI", sans-serif;
+    }
+
+    body {
+      min-width: 320px;
+      margin: 0;
+      background: var(--ink);
+      color: var(--text);
+    }
+
+    button {
+      color: inherit;
+      font: inherit;
+    }
+
+    button:not(:disabled) {
+      cursor: pointer;
+    }
+
+    button:focus-visible,
+    [tabindex]:focus-visible {
+      outline: 2px solid var(--amber-soft);
+      outline-offset: 3px;
+    }
+
+    .app-header {
+      position: sticky;
+      z-index: 10;
+      top: 0;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .header-inner {
+      display: flex;
+      max-width: 1680px;
+      min-height: 72px;
+      margin: 0 auto;
+      padding: var(--space-3) var(--space-6);
+      align-items: center;
+      gap: var(--space-4);
+    }
+
+    .title-group {
+      min-width: max-content;
+    }
+
+    .eyebrow,
+    .panel-label,
+    .cut-index,
+    .lightbox-index {
+      margin: 0;
+      color: var(--faint);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      line-height: 1.2;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: var(--space-1) 0 0;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .tablist {
+      display: flex;
+      margin-left: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .tab {
+      min-height: 40px;
+      padding: 0 var(--space-4);
+      border: 0;
+      border-right: 1px solid var(--line);
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+
+    .tab:last-child {
+      border-right: 0;
+    }
+
+    .tab[aria-selected="true"] {
+      background: var(--amber);
+      color: #271c13;
+    }
+
+    .tab-count {
+      margin-left: var(--space-2);
+      font-size: 0.72rem;
+      font-variant-numeric: tabular-nums;
+      opacity: 0.8;
+    }
+
+    .header-status {
+      display: grid;
+      gap: var(--space-1);
+      min-width: 0;
+      color: var(--muted);
+      font-size: 0.76rem;
+      line-height: 1.35;
+    }
+
+    .header-status strong {
+      color: var(--amber-soft);
+      font-size: 0.78rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .header-status span {
+      white-space: nowrap;
+    }
+
+    main {
+      max-width: 1680px;
+      margin: 0 auto;
+      padding: var(--space-8) var(--space-6) 80px;
+    }
+
+    .comparison-list {
+      display: grid;
+      gap: var(--space-10);
+    }
+
+    .comparison-card {
+      padding-top: var(--space-5);
+      border-top: 1px solid var(--line-quiet);
+    }
+
+    .comparison-card:first-child {
+      padding-top: 0;
+      border-top: 0;
+    }
+
+    .cut-heading {
+      display: flex;
+      margin: 0 0 var(--space-3);
+      align-items: baseline;
+      gap: var(--space-3);
+    }
+
+    .cut-title {
+      color: var(--text);
+      font-size: clamp(1rem, 1.4vw, 1.2rem);
+      font-weight: 700;
+      letter-spacing: 0.025em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .cut-index {
+      margin-left: auto;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .comparison-pair {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--space-3);
+    }
+
+    .comparison-pair.comparison-pair--triple {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .comparison-panel {
+      display: grid;
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--surface-raised);
+    }
+
+    .panel-heading {
+      display: flex;
+      min-height: 44px;
+      padding: var(--space-3) var(--space-4);
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .panel-label {
+      color: var(--amber-soft);
+      letter-spacing: 0.04em;
+      text-transform: none;
+    }
+
+    .photo-trigger {
+      position: relative;
+      display: grid;
+      width: 100%;
+      min-height: clamp(250px, 37vw, 600px);
+      padding: 0;
+      place-items: center;
+      border: 0;
+      background: var(--stage);
+      overflow: hidden;
+    }
+
+    .photo-trigger::after {
+      position: absolute;
+      right: var(--space-3);
+      bottom: var(--space-3);
+      padding: var(--space-2) var(--space-3);
+      border: 1px solid rgba(240, 233, 222, 0.32);
+      border-radius: 999px;
+      background: rgba(27, 25, 23, 0.82);
+      color: var(--text);
+      content: "확대 보기";
+      font-size: 0.72rem;
+      opacity: 0;
+      transition: opacity 160ms ease;
+    }
+
+    .photo-trigger:hover::after,
+    .photo-trigger:focus-visible::after {
+      opacity: 1;
+    }
+
+    .comparison-image {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .photo-error {
+      position: absolute;
+      right: var(--space-5);
+      bottom: var(--space-5);
+      left: var(--space-5);
+      max-width: 460px;
+      margin: 0 auto;
+      padding: var(--space-3) var(--space-4);
+      border: 1px solid #826245;
+      border-radius: 6px;
+      background: #33261d;
+      color: #f0d5b6;
+      font-size: 0.82rem;
+      line-height: 1.55;
+    }
+
+    .panel-actions {
+      display: flex;
+      padding: var(--space-2);
+      justify-content: flex-end;
+      border-top: 1px solid var(--line-quiet);
+    }
+
+    .plain-control {
+      min-height: 36px;
+      padding: 0 var(--space-3);
+      border: 1px solid transparent;
+      border-radius: 5px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .plain-control:hover {
+      border-color: var(--line);
+      color: var(--text);
+    }
+
+    .empty-state {
+      padding: var(--space-8);
+      border: 1px dashed var(--line);
+      border-radius: var(--radius);
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    dialog {
+      width: min(96vw, 1800px);
+      max-width: none;
+      max-height: 94vh;
+      margin: auto;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    dialog::backdrop {
+      background: rgba(17, 15, 13, 0.88);
+    }
+
+    .lightbox-shell {
+      display: grid;
+      max-height: 94vh;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+    }
+
+    .lightbox-header,
+    .lightbox-controls {
+      display: flex;
+      min-height: 56px;
+      padding: var(--space-2) var(--space-3);
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    .lightbox-header {
+      border-bottom: 1px solid var(--line);
+    }
+
+    .lightbox-title {
+      min-width: 0;
+      margin: 0;
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: 0.025em;
+    }
+
+    .lightbox-index {
+      margin-left: auto;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .lightbox-close {
+      min-height: 36px;
+      padding: 0 var(--space-3);
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: var(--surface-raised);
+      color: var(--text);
+      font-size: 0.78rem;
+    }
+
+    .lightbox-pair {
+      display: grid;
+      min-height: min(72vh, 900px);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1px;
+      background: var(--line);
+      overflow: hidden;
+    }
+
+    .lightbox-pair.lightbox-pair--triple {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .lightbox-panel {
+      display: grid;
+      min-width: 0;
+      grid-template-rows: auto minmax(0, 1fr);
+      background: var(--stage-raised);
+    }
+
+    .lightbox-label {
+      padding: var(--space-2) var(--space-3);
+      color: var(--amber-soft);
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+
+    .lightbox-stage {
+      position: relative;
+      display: grid;
+      min-width: 0;
+      min-height: 0;
+      place-items: center;
+      background: var(--stage);
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    .zoomable {
+      display: grid;
+      width: 100%;
+      height: 100%;
+      place-items: center;
+      transform-origin: center;
+      transition: transform 160ms ease;
+      will-change: transform;
+    }
+
+    .lightbox-pair.is-panning .zoomable {
+      transition: none;
+    }
+
+    .lightbox-image {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      user-select: none;
+    }
+
+    .lightbox-error {
+      position: absolute;
+      right: var(--space-5);
+      bottom: var(--space-5);
+      left: var(--space-5);
+      max-width: 460px;
+      margin: 0 auto;
+      padding: var(--space-3) var(--space-4);
+      border: 1px solid #826245;
+      border-radius: 6px;
+      background: #33261d;
+      color: #f0d5b6;
+      font-size: 0.82rem;
+      line-height: 1.55;
+    }
+
+    .lightbox-controls {
+      justify-content: center;
+      border-top: 1px solid var(--line);
+    }
+
+    .zoom-status {
+      min-width: 68px;
+      color: var(--muted);
+      font-size: 0.76rem;
+      font-variant-numeric: tabular-nums;
+      text-align: center;
+    }
+
+    .lightbox-controls .plain-control {
+      border-color: var(--line);
+      background: var(--surface-raised);
+      color: var(--text);
+    }
+
+    .lightbox-controls .plain-control:hover,
+    .lightbox-close:hover {
+      border-color: var(--amber);
+    }
+
+    @media (max-width: 780px) {
+      .header-inner {
+        min-height: auto;
+        padding: var(--space-3) var(--space-4);
+        flex-wrap: wrap;
+      }
+
+      .tablist {
+        order: 3;
+        width: 100%;
+        margin-left: 0;
+      }
+
+      .tab {
+        flex: 1;
+      }
+
+      .header-status {
+        margin-left: auto;
+        text-align: right;
+      }
+
+      .header-status span {
+        display: none;
+      }
+
+      main {
+        padding: var(--space-6) var(--space-4) 56px;
+      }
+
+      .comparison-list {
+        gap: var(--space-8);
+      }
+
+      .comparison-pair {
+        grid-template-columns: 1fr;
+      }
+
+      .comparison-pair.comparison-pair--triple {
+        grid-template-columns: 1fr;
+      }
+
+      .photo-trigger {
+        min-height: 270px;
+      }
+
+      .lightbox-pair {
+        grid-template-columns: 1fr;
+        grid-auto-rows: minmax(280px, 1fr);
+        min-height: 62vh;
+        overflow-y: auto;
+      }
+
+      .lightbox-pair.lightbox-pair--triple {
+        grid-template-columns: 1fr;
+      }
+
+      .lightbox-controls {
+        flex-wrap: wrap;
+      }
+
+      .lightbox-header {
+        flex-wrap: wrap;
+      }
+
+      .lightbox-index {
+        margin-left: 0;
+      }
+
+      .lightbox-close {
+        margin-left: auto;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto;
+        transition: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="title-group">
+        <p class="eyebrow">2026 sunwhi wedding</p>
+        <h1>보정사진 비교</h1>
+      </div>
+
+      <div class="tablist" role="tablist" aria-label="보정 비교 묶음">
+        <button class="tab is-active" type="button" role="tab" id="tab-glenn" data-tab="glenn" aria-selected="true" aria-controls="comparison-list">
+          글렌 보정 <span class="tab-count">9컷</span>
+        </button>
+        <button class="tab" type="button" role="tab" id="tab-avec" data-tab="avec" aria-selected="false" aria-controls="comparison-list" tabindex="-1">
+          아베크 비교 <span class="tab-count">11컷</span>
+        </button>
+        <button class="tab" type="button" role="tab" id="tab-vehicles" data-tab="vehicles" aria-selected="false" aria-controls="comparison-list" tabindex="-1">
+          차량 제거 2종 <span class="tab-count">1컷</span>
+        </button>
+      </div>
+
+      <div class="header-status" aria-live="polite">
+        <strong id="current-cut-count">글렌 보정 · 9컷</strong>
+        <span>21개 비교 묶음 · 사진 42장 · 웹용 2,048px · 사진을 누르면 함께 확대</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="comparison-list" class="comparison-list" role="tabpanel" aria-labelledby="tab-glenn" tabindex="-1" aria-label="보정사진 비교 목록"></main>
+
+  <dialog id="lightbox" aria-labelledby="lightbox-title" aria-describedby="lightbox-help">
+    <div class="lightbox-shell">
+      <div class="lightbox-header">
+        <p id="lightbox-title" class="lightbox-title">사진 전체화면 비교</p>
+        <p id="lightbox-index" class="lightbox-index">1 / 9</p>
+        <button id="lightbox-close" class="lightbox-close" type="button" aria-label="확대 비교 창 닫기">닫기</button>
+      </div>
+      <div id="lightbox-pair" class="lightbox-pair" aria-live="polite"></div>
+      <div class="lightbox-controls">
+        <button id="previous-pair" class="plain-control" type="button" aria-label="이전 비교 사진">이전</button>
+        <button id="zoom-out" class="plain-control" type="button" aria-label="사진 확대 축소">축소</button>
+        <button id="reset-view" class="plain-control" type="button" aria-label="확대와 위치 초기화">보기 초기화</button>
+        <button id="zoom-in" class="plain-control" type="button" aria-label="사진 확대">확대</button>
+        <button id="next-pair" class="plain-control" type="button" aria-label="다음 비교 사진">다음</button>
+        <span id="zoom-status" class="zoom-status" role="status" aria-live="polite">확대 100%</span>
+        <span id="lightbox-help" class="sr-only">휠로 확대하고 드래그하여 두 사진을 함께 이동할 수 있습니다.</span>
+      </div>
+    </div>
+  </dialog>
+
+  <script id="comparison-data" type="application/json">
+
+{
+        "glenn": [
+                {
+                        "order": "01",
+                        "id": "DS_00082",
+                        "left": {
+                                "label": "글렌 1차 수정",
+                                "path": "assets/glenn-01-ds-00082-before.jpg"
+                        },
+                        "right": {
+                                "label": "글렌 재수정",
+                                "path": "assets/glenn-01-ds-00082-after.jpg"
+                        }
+                },
+                {
+                        "order": "13",
+                        "id": "DS_00465",
+                        "left": {
+                                "label": "글렌 1차 수정",
+                                "path": "assets/glenn-13-ds-00465-before.jpg"
+                        },
+                        "right": {
+                                "label": "글렌 재수정",
+                                "path": "assets/glenn-13-ds-00465-after.jpg"
+                        }
+                },
+                {
+                        "order": "18",
+                        "id": "DS_00626",
+                        "left": {
+                                "label": "글렌 1차 수정",
+                                "path": "assets/glenn-18-ds-00626-before.jpg"
+                        },
+                        "right": {
+                                "label": "글렌 재수정",
+                                "path": "assets/glenn-18-ds-00626-after.jpg"
+                        }
+                },
+                {
+                        "order": "20",
+                        "id": "DS_00662",
+                        "left": {
+                                "label": "글렌 1차 수정",
+                                "path": "assets/glenn-20-ds-00662-before.jpg"
+                        },
+                        "right": {
+                                "label": "글렌 재수정",
+                                "path": "assets/glenn-20-ds-00662-after.jpg"
+                        }
+                },
+                {
+                        "order": "23",
+                        "id": "DS_00722",
+                        "left": {
+                                "label": "글렌 1차 수정",
+                                "path": "assets/glenn-23-ds-00722-before.jpg"
+                        },
+                        "right": {
+                                "label": "글렌 재수정",
+                                "path": "assets/glenn-23-ds-00722-after.jpg"
+                        }
+                },
+                {
+                        "order": "25",
+                        "id": "DS_00778",
+                        "left": {
+                                "label": "글렌 1차 수정",
+                                "path": "assets/glenn-25-ds-00778-before.jpg"
+                        },
+                        "right": {
+                                "label": "글렌 재수정",
+                                "path": "assets/glenn-25-ds-00778-after.jpg"
+                        }
+                },
+                {
+                        "order": "31",
+                        "id": "DS_00955",
+                        "left": {
+                                "label": "글렌 1차 수정",
+                                "path": "assets/glenn-31-ds-00955-before.jpg"
+                        },
+                        "right": {
+                                "label": "글렌 재수정",
+                                "path": "assets/glenn-31-ds-00955-after.jpg"
+                        }
+                },
+                {
+                        "order": "32",
+                        "id": "DS_01003",
+                        "left": {
+                                "label": "글렌 1차 수정",
+                                "path": "assets/glenn-32-ds-01003-before.jpg"
+                        },
+                        "right": {
+                                "label": "글렌 재수정",
+                                "path": "assets/glenn-32-ds-01003-after.jpg"
+                        }
+                },
+                {
+                        "order": "36",
+                        "id": "DS_01060",
+                        "left": {
+                                "label": "글렌 1차 수정",
+                                "path": "assets/glenn-36-ds-01060-before.jpg"
+                        },
+                        "right": {
+                                "label": "글렌 재수정",
+                                "path": "assets/glenn-36-ds-01060-after.jpg"
+                        }
+                }
+        ],
+        "avec": [
+                {
+                        "order": "04",
+                        "id": "DS_00169",
+                        "left": {
+                                "label": "글렌 원본",
+                                "path": "assets/avec-04-ds-00169-before.jpg"
+                        },
+                        "right": {
+                                "label": "아베크 수정",
+                                "path": "assets/avec-04-ds-00169-after.jpg"
+                        }
+                },
+                {
+                        "order": "14",
+                        "id": "DS_00317",
+                        "left": {
+                                "label": "글렌 원본",
+                                "path": "assets/avec-14-ds-00317-before.jpg"
+                        },
+                        "right": {
+                                "label": "아베크 수정",
+                                "path": "assets/avec-14-ds-00317-after.jpg"
+                        }
+                },
+                {
+                        "order": "21",
+                        "id": "DS_00675",
+                        "left": {
+                                "label": "글렌 원본",
+                                "path": "assets/avec-21-ds-00675-before.jpg"
+                        },
+                        "right": {
+                                "label": "아베크 수정",
+                                "path": "assets/avec-21-ds-00675-after.jpg"
+                        }
+                },
+                {
+                        "order": "22",
+                        "id": "DS_00796",
+                        "left": {
+                                "label": "글렌 원본",
+                                "path": "assets/avec-22-ds-00796-before.jpg"
+                        },
+                        "right": {
+                                "label": "아베크 수정",
+                                "path": "assets/avec-22-ds-00796-after.jpg"
+                        }
+                },
+                {
+                        "order": "27",
+                        "id": "DS_00851",
+                        "left": {
+                                "label": "글렌 원본",
+                                "path": "assets/avec-27-ds-00851-before.jpg"
+                        },
+                        "right": {
+                                "label": "아베크 수정",
+                                "path": "assets/avec-27-ds-00851-after.jpg"
+                        }
+                },
+                {
+                        "order": "29",
+                        "id": "DS_00905",
+                        "left": {
+                                "label": "글렌 원본",
+                                "path": "assets/avec-29-ds-00905-before.jpg"
+                        },
+                        "right": {
+                                "label": "아베크 수정",
+                                "path": "assets/avec-29-ds-00905-after.jpg"
+                        }
+                },
+                {
+                        "order": "34",
+                        "id": "DS_01137",
+                        "left": {
+                                "label": "글렌 원본",
+                                "path": "assets/avec-34-ds-01137-before.jpg"
+                        },
+                        "right": {
+                                "label": "아베크 수정",
+                                "path": "assets/avec-34-ds-01137-after.jpg"
+                        }
+                },
+                {
+                        "order": "37",
+                        "id": "DS_01153",
+                        "left": {
+                                "label": "글렌 원본",
+                                "path": "assets/avec-37-ds-01153-before.jpg"
+                        },
+                        "right": {
+                                "label": "아베크 수정",
+                                "path": "assets/avec-37-ds-01153-after.jpg"
+                        }
+                },
+                {
+                        "order": "38",
+                        "id": "DS_01191",
+                        "left": {
+                                "label": "글렌 원본",
+                                "path": "assets/avec-38-ds-01191-before.jpg"
+                        },
+                        "right": {
+                                "label": "아베크 수정",
+                                "path": "assets/avec-38-ds-01191-after.jpg"
+                        }
+                },
+                {
+                        "order": "",
+                        "id": "DS_00332",
+                        "left": {
+                                "label": "글렌 원본",
+                                "path": "assets/avec-select-ds-00332-before.jpg"
+                        },
+                        "right": {
+                                "label": "아베크 수정",
+                                "path": "assets/avec-select-ds-00332-after.jpg"
+                        }
+                },
+                {
+                        "order": "",
+                        "id": "DS_00899",
+                        "left": {
+                                "label": "글렌 원본",
+                                "path": "assets/avec-select-ds-00899-before.jpg"
+                        },
+                        "right": {
+                                "label": "아베크 수정",
+                                "path": "assets/avec-select-ds-00899-after.jpg"
+                        }
+                }
+        ],
+        "vehicles": [
+                {
+                        "order": "29",
+                        "id": "DS_00905",
+                        "panels": [
+                                {
+                                        "label": "아베크 수정",
+                                        "path": "assets/avec-29-ds-00905-after.jpg"
+                                },
+                                {
+                                        "label": "차량 제거 · 도로",
+                                        "path": "assets/vehicles-29-ds-00905-after.jpg"
+                                },
+                                {
+                                        "label": "차량 제거 · 풀숲길",
+                                        "path": "assets/vehicles-29-ds-00905-3.jpg"
+                                }
+                        ]
+                }
+        ]
+}
+
+  </script>
+  <script>
+    (() => {
+      'use strict';
+
+      const DATA = JSON.parse(document.getElementById('comparison-data').textContent);
+      const TAB_META = {
+        glenn: { name: '글렌 보정', count: '9컷' },
+        avec: { name: '아베크 비교', count: '11컷' },
+        vehicles: { name: '차량 제거 2종', count: '1컷' },
+      };
+      const comparisonList = document.getElementById('comparison-list');
+      const tabs = [...document.querySelectorAll('[role="tab"]')];
+      const currentCutCount = document.getElementById('current-cut-count');
+      const lightbox = document.getElementById('lightbox');
+      const lightboxPair = document.getElementById('lightbox-pair');
+      const lightboxTitle = document.getElementById('lightbox-title');
+      const lightboxIndex = document.getElementById('lightbox-index');
+      const lightboxClose = document.getElementById('lightbox-close');
+      const previousPair = document.getElementById('previous-pair');
+      const nextPair = document.getElementById('next-pair');
+      const zoomOutButton = document.getElementById('zoom-out');
+      const resetViewButton = document.getElementById('reset-view');
+      const zoomInButton = document.getElementById('zoom-in');
+      const zoomStatus = document.getElementById('zoom-status');
+      const OFFLINE_RECOVERY_MESSAGE = '사진을 불러오지 못했습니다. 인터넷 연결을 확인하고 페이지를 새로고침해 주세요.';
+      let currentTab = 'glenn';
+      let activeIndex = 0;
+      let observer = null;
+      let lightboxOrigin = null;
+      let zoom = 1;
+      let panX = 0;
+      let panY = 0;
+      let isPanning = false;
+      let activePointerId = null;
+      let previousPointerX = 0;
+      let previousPointerY = 0;
+
+      function createElement(name, className, text) {
+        const element = document.createElement(name);
+        if (className) element.className = className;
+        if (text !== undefined) element.textContent = text;
+        return element;
+      }
+
+      function loadImage(image) {
+        if (image.dataset.loaded === 'true' || !image.dataset.src) return;
+        image.dataset.loaded = 'true';
+        image.src = encodeURI(image.dataset.src);
+      }
+
+      function activateLazyImages() {
+        if (observer) {
+          observer.disconnect();
+          observer = null;
+        }
+
+        const images = [...comparisonList.querySelectorAll('img[data-src]')];
+        if ('IntersectionObserver' in window) {
+          observer = new IntersectionObserver((entries, activeObserver) => {
+            entries.forEach((entry) => {
+              if (!entry.isIntersecting) return;
+              loadImage(entry.target);
+              activeObserver.unobserve(entry.target);
+            });
+          }, { rootMargin: '640px 0px' });
+          images.forEach((image) => observer.observe(image));
+        } else {
+          images.forEach((image) => loadImage(image));
+        }
+      }
+
+      function createComparisonPanel(panel, pair, index) {
+        const panelElement = createElement('section', 'comparison-panel');
+        const panelHeading = createElement('div', 'panel-heading');
+        const label = createElement('p', 'panel-label', panel.label);
+        const stage = createElement('button', 'photo-trigger');
+        const image = createElement('img', 'comparison-image');
+        const errorId = `image-error-${currentTab}-${index}-${panel.label}`.replace(/\s+/g, '-');
+        const error = createElement(
+          'span',
+          'photo-error',
+          OFFLINE_RECOVERY_MESSAGE,
+        );
+        const actions = createElement('div', 'panel-actions');
+        const originalOpen = createElement('button', 'plain-control', '크게 비교');
+
+        panelHeading.append(label);
+        stage.type = 'button';
+        stage.setAttribute('aria-label', `${pair.id} ${panel.label} 사진 확대 보기`);
+        image.alt = `${pair.id} ${panel.label}`;
+        image.loading = 'lazy';
+        image.decoding = 'async';
+        image.dataset.src = panel.path;
+        error.hidden = true;
+        image.addEventListener('error', () => {
+          error.hidden = false;
+          stage.setAttribute('aria-describedby', errorId);
+        });
+        error.id = errorId;
+        stage.addEventListener('click', () => openLightbox(index, stage));
+        stage.append(image, error);
+
+        originalOpen.type = 'button';
+        originalOpen.classList.add('original-open');
+        originalOpen.setAttribute('aria-label', `${pair.id} ${panel.label} 사진 전체화면으로 열기`);
+        originalOpen.addEventListener('click', (event) => {
+          event.preventDefault();
+          openLightbox(index, originalOpen);
+        });
+        actions.append(originalOpen);
+        panelElement.append(panelHeading, stage, actions);
+        return panelElement;
+      }
+
+      function panelsFor(pair) {
+        if (Array.isArray(pair.panels)) return pair.panels;
+        return [pair.left, pair.right];
+      }
+
+      function renderCards() {
+        const pairs = DATA[currentTab];
+        comparisonList.replaceChildren();
+
+        if (!pairs.length) {
+          comparisonList.append(createElement('p', 'empty-state', '표시할 비교 사진이 없습니다.'));
+          return;
+        }
+
+        pairs.forEach((pair, index) => {
+          const card = createElement('article', 'comparison-card');
+          const heading = createElement('header', 'cut-heading');
+          const title = createElement('span', 'cut-title');
+          const cutIndex = createElement('span', 'cut-index', `${index + 1} / ${pairs.length}`);
+          const sequenceText = pair.order ? `${pair.order} · ${pair.id}` : pair.id;
+          const comparisonPair = createElement('div', 'comparison-pair');
+          const panels = panelsFor(pair);
+
+          title.textContent = sequenceText;
+          comparisonPair.classList.toggle('comparison-pair--triple', panels.length === 3);
+          comparisonPair.setAttribute('aria-label', `${panels.map((panel) => panel.label).join(' 및 ')} 비교`);
+          heading.append(title, cutIndex);
+          comparisonPair.append(...panels.map((panel) => createComparisonPanel(panel, pair, index)));
+          card.append(heading, comparisonPair);
+          comparisonList.append(card);
+        });
+
+        activateLazyImages();
+      }
+
+      function setActiveTab(tabName) {
+        if (!Object.hasOwn(DATA, tabName) || tabName === currentTab) return;
+        currentTab = tabName;
+        activeIndex = 0;
+        const activeTab = document.querySelector(`[role="tab"][data-tab="${currentTab}"]`);
+
+        tabs.forEach((tab) => {
+          const selected = tab.dataset.tab === currentTab;
+          tab.setAttribute('aria-selected', String(selected));
+          tab.tabIndex = selected ? 0 : -1;
+          tab.classList.toggle('is-active', selected);
+        });
+        comparisonList.setAttribute('aria-labelledby', activeTab.id);
+        currentCutCount.textContent = `${TAB_META[currentTab].name} · ${TAB_META[currentTab].count}`;
+        renderCards();
+      }
+
+      function renderLightbox() {
+        const pairs = DATA[currentTab];
+        const pair = pairs[activeIndex];
+        const sequenceText = pair.order ? `${pair.order} · ${pair.id}` : pair.id;
+        const panels = panelsFor(pair);
+        lightboxTitle.textContent = sequenceText;
+        lightboxIndex.textContent = `${activeIndex + 1} / ${pairs.length}`;
+        lightboxPair.classList.toggle('lightbox-pair--triple', panels.length === 3);
+        lightboxPair.replaceChildren(...panels.map((panel) => createLightboxPanel(panel, pair)));
+        applyView();
+      }
+
+      function createLightboxPanel(panel, pair) {
+        const panelElement = createElement('section', 'lightbox-panel');
+        const label = createElement('p', 'lightbox-label', panel.label);
+        const stage = createElement('div', 'lightbox-stage');
+        const zoomable = createElement('div', 'zoomable');
+        const image = createElement('img', 'lightbox-image');
+        const error = createElement('p', 'lightbox-error', OFFLINE_RECOVERY_MESSAGE);
+
+        image.alt = `${pair.id} ${panel.label} 확대 비교`;
+        image.draggable = false;
+        error.hidden = true;
+        error.setAttribute('role', 'status');
+        error.setAttribute('aria-live', 'polite');
+        image.addEventListener('error', () => {
+          image.hidden = true;
+          error.hidden = false;
+          stage.classList.add('has-error');
+        });
+        image.src = encodeURI(panel.path);
+        zoomable.append(image);
+        stage.append(zoomable, error);
+        panelElement.append(label, stage);
+        return panelElement;
+      }
+
+      function applyView() {
+        const transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+        lightboxPair.querySelectorAll('.zoomable').forEach((zoomable) => {
+          zoomable.style.transform = transform;
+        });
+        zoomStatus.textContent = `확대 ${Math.round(zoom * 100)}%`;
+      }
+
+      function adjustZoom(delta) {
+        const nextZoom = zoom + delta;
+        zoom = Math.min(4, Math.max(1, Number(nextZoom.toFixed(2))));
+        if (zoom === 1) {
+          panX = 0;
+          panY = 0;
+        }
+        applyView();
+      }
+
+      function resetView() {
+        zoom = 1;
+        panX = 0;
+        panY = 0;
+        applyView();
+      }
+
+      function openLightbox(index, origin) {
+        activeIndex = index;
+        lightboxOrigin = origin || document.activeElement;
+        resetView();
+        renderLightbox();
+        if (!lightbox.open) lightbox.showModal();
+        lightboxClose.focus();
+      }
+
+      function navigatePair(step) {
+        const pairs = DATA[currentTab];
+        activeIndex = (activeIndex + step + pairs.length) % pairs.length;
+        resetView();
+        renderLightbox();
+      }
+
+      function stopPanning(event) {
+        if (event.pointerId !== activePointerId) return;
+        isPanning = false;
+        activePointerId = null;
+        lightboxPair.classList.remove('is-panning');
+        if (lightboxPair.hasPointerCapture(event.pointerId)) {
+          lightboxPair.releasePointerCapture(event.pointerId);
+        }
+      }
+
+      tabs.forEach((tab) => {
+        tab.addEventListener('click', () => setActiveTab(tab.dataset.tab));
+        tab.addEventListener('keydown', (event) => {
+          if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+          event.preventDefault();
+          const currentIndex = tabs.indexOf(tab);
+          const nextIndex = (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+          tabs[nextIndex].focus();
+          setActiveTab(tabs[nextIndex].dataset.tab);
+        });
+      });
+
+      lightboxClose.addEventListener('click', () => lightbox.close());
+      previousPair.addEventListener('click', () => navigatePair(-1));
+      nextPair.addEventListener('click', () => navigatePair(1));
+      zoomOutButton.addEventListener('click', () => adjustZoom(-0.25));
+      resetViewButton.addEventListener('click', resetView);
+      zoomInButton.addEventListener('click', () => adjustZoom(0.25));
+      lightbox.addEventListener('close', () => {
+        if (lightboxOrigin && typeof lightboxOrigin.focus === 'function') lightboxOrigin.focus();
+        lightboxOrigin = null;
+        isPanning = false;
+        activePointerId = null;
+        lightboxPair.classList.remove('is-panning');
+      });
+      lightbox.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          lightbox.close();
+        } else if (event.key === 'ArrowLeft') {
+          event.preventDefault();
+          navigatePair(-1);
+        } else if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          navigatePair(1);
+        }
+      });
+      lightboxPair.addEventListener('wheel', (event) => {
+        if (!lightbox.open) return;
+        event.preventDefault();
+        adjustZoom(event.deltaY < 0 ? 0.12 : -0.12);
+      }, { passive: false });
+      lightboxPair.addEventListener('pointerdown', (event) => {
+        if (!lightbox.open || zoom <= 1 || event.button !== 0) return;
+        isPanning = true;
+        activePointerId = event.pointerId;
+        previousPointerX = event.clientX;
+        previousPointerY = event.clientY;
+        lightboxPair.classList.add('is-panning');
+        lightboxPair.setPointerCapture(event.pointerId);
+        event.preventDefault();
+      });
+      lightboxPair.addEventListener('pointermove', (event) => {
+        if (!isPanning || event.pointerId !== activePointerId) return;
+        panX += event.clientX - previousPointerX;
+        panY += event.clientY - previousPointerY;
+        previousPointerX = event.clientX;
+        previousPointerY = event.clientY;
+        applyView();
+      });
+      lightboxPair.addEventListener('pointerup', stopPanning);
+      lightboxPair.addEventListener('pointercancel', stopPanning);
+
+      renderCards();
+    })();
+  </script>
+</body>
+</html>
