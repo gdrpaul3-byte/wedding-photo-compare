@@ -597,13 +597,13 @@
           아베크 비교 <span class="tab-count">11컷</span>
         </button>
         <button class="tab" type="button" role="tab" id="tab-vehicles" data-tab="vehicles" aria-selected="false" aria-controls="comparison-list" tabindex="-1">
-          차량 제거 2종 <span class="tab-count">1컷</span>
+          차량 제거·꽃 수정 <span class="tab-count">1컷</span>
         </button>
       </div>
 
       <div class="header-status" aria-live="polite">
         <strong id="current-cut-count">글렌 보정 · 9컷</strong>
-        <span>21개 비교 묶음 · 사진 52장 · 웹용 최대 2,048px · 사진을 누르면 함께 확대</span>
+        <span>21개 비교 묶음 · 사진 53장 · 웹용 최대 2,048px · 사진을 누르면 함께 확대</span>
       </div>
     </div>
   </header>
@@ -961,6 +961,11 @@
                                 {
                                         "label": "차량 제거 · 풀숲길",
                                         "path": "assets/vehicles-29-ds-00905-3.jpg"
+                                },
+                                {
+                                        "label": "도로 · 빨간 꽃 풍성하게",
+                                        "path": "assets/vehicles-29-ds-00905-road-flowers-20260925.jpg",
+                                        "variant": "road-flowers-20260925"
                                 }
                         ]
                 }
@@ -976,7 +981,7 @@
       const TAB_META = {
         glenn: { name: '글렌 보정', count: '9컷' },
         avec: { name: '아베크 비교', count: '11컷' },
-        vehicles: { name: '차량 제거 2종', count: '1컷' },
+        vehicles: { name: '차량 제거·꽃 수정', count: '1컷' },
       };
       const comparisonList = document.getElementById('comparison-list');
       const tabs = [...document.querySelectorAll('[role="tab"]')];
