@@ -35,6 +35,10 @@
       box-sizing: border-box;
     }
 
+    [hidden] {
+      display: none !important;
+    }
+
     html {
       background: var(--ink);
       color: var(--text);
@@ -208,6 +212,50 @@
 
     .comparison-pair.comparison-pair--triple {
       grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .comparison-pair.comparison-pair--carousel,
+    .lightbox-pair.lightbox-pair--carousel {
+      grid-template-columns: 1fr;
+    }
+
+    .comparison-pair--carousel .photo-trigger {
+      grid-template-rows: minmax(0, 1fr);
+      touch-action: pan-y;
+    }
+
+    .comparison-pair--carousel .comparison-image {
+      user-select: none;
+    }
+
+    .version-controls {
+      display: flex;
+      padding: var(--space-3) 0;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-4);
+    }
+
+    .version-controls .plain-control {
+      border-color: var(--line);
+      color: var(--text);
+    }
+
+    .version-status {
+      min-width: 72px;
+      margin: 0;
+      color: var(--amber-soft);
+      font-size: 0.82rem;
+      font-variant-numeric: tabular-nums;
+      text-align: center;
+    }
+
+    .carousel-hint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.75rem;
+      line-height: 1.5;
+      text-align: center;
     }
 
     .comparison-panel {
@@ -474,8 +522,21 @@
     }
 
     .lightbox-controls {
+      flex-wrap: wrap;
       justify-content: center;
       border-top: 1px solid var(--line);
+    }
+
+    .lightbox-controls .version-controls {
+      flex-basis: 100%;
+      order: -1;
+      padding: 0;
+    }
+
+    .lightbox-pair.lightbox-pair--carousel {
+      height: min(62vh, 900px);
+      min-height: 0;
+      grid-auto-rows: minmax(0, 1fr);
     }
 
     .zoom-status {
@@ -619,11 +680,11 @@
       </div>
       <div id="lightbox-pair" class="lightbox-pair" aria-live="polite"></div>
       <div class="lightbox-controls">
-        <button id="previous-pair" class="plain-control" type="button" aria-label="이전 비교 사진">이전</button>
+        <button id="previous-pair" class="plain-control" type="button" aria-label="이전 촬영 컷">이전 촬영 컷</button>
         <button id="zoom-out" class="plain-control" type="button" aria-label="사진 확대 축소">축소</button>
         <button id="reset-view" class="plain-control" type="button" aria-label="확대와 위치 초기화">보기 초기화</button>
         <button id="zoom-in" class="plain-control" type="button" aria-label="사진 확대">확대</button>
-        <button id="next-pair" class="plain-control" type="button" aria-label="다음 비교 사진">다음</button>
+        <button id="next-pair" class="plain-control" type="button" aria-label="다음 촬영 컷">다음 촬영 컷</button>
         <span id="zoom-status" class="zoom-status" role="status" aria-live="polite">확대 100%</span>
         <span id="lightbox-help" class="sr-only">휠로 확대하고 드래그하여 두 사진을 함께 이동할 수 있습니다.</span>
       </div>
@@ -1009,6 +1070,15 @@
       let activePointerId = null;
       let previousPointerX = 0;
       let previousPointerY = 0;
+      const selectedVersions = new Map();
+      const cardViews = new Map();
+      const pressedPointers = new Set();
+      let lightboxPanels = [];
+      let swipe = null;
+      let suppressedClick = null;
+      const lightboxVersions = createVersionControls((step) => changeVersion(activeIndex, step));
+      lightboxVersions.hidden = true;
+      document.querySelector('.lightbox-controls').append(lightboxVersions);
 
       function createElement(name, className, text) {
         const element = document.createElement(name);
@@ -1029,7 +1099,8 @@
           observer = null;
         }
 
-        const images = [...comparisonList.querySelectorAll('img[data-src]')];
+        const images = [...comparisonList.querySelectorAll('img[data-src]')]
+          .filter((image) => !image.closest('[hidden]'));
         if ('IntersectionObserver' in window) {
           observer = new IntersectionObserver((entries, activeObserver) => {
             entries.forEach((entry) => {
@@ -1092,9 +1163,50 @@
         return [pair.left, pair.right];
       }
 
+      function createVersionControls(onChange) {
+        const controls = createElement('div', 'version-controls');
+        const previous = createElement('button', 'plain-control', '← 이전 버전');
+        const status = createElement('p', 'version-status');
+        const next = createElement('button', 'plain-control', '다음 버전 →');
+        status.setAttribute('role', 'status');
+        status.setAttribute('aria-live', 'polite');
+        status.setAttribute('aria-atomic', 'true');
+        [[previous, -1, '이전 버전'], [next, 1, '다음 버전']].forEach(([button, step, label]) => {
+          button.type = 'button';
+          button.dataset.versionStep = String(step);
+          button.setAttribute('aria-label', label);
+          button.addEventListener('click', () => onChange(step));
+        });
+        controls.append(previous, status, next);
+        return controls;
+      }
+
+      function showVersion(panelElements, controls, version) {
+        panelElements.forEach((element, index) => {
+          element.hidden = index !== version;
+          element.inert = index !== version;
+        });
+        controls.querySelector('.version-status').textContent = `버전 ${version + 1}/${panelElements.length}`;
+        const image = panelElements[version].querySelector('img[data-src]');
+        if (image) loadImage(image);
+      }
+
+      function changeVersion(index, step) {
+        const view = cardViews.get(index);
+        if (!view || view.panels.length < 4) return;
+        const version = ((selectedVersions.get(index) || 0) + step + view.panels.length) % view.panels.length;
+        selectedVersions.set(index, version);
+        showVersion(view.panels, view.controls, version);
+        if (lightbox.open && activeIndex === index) {
+          showVersion(lightboxPanels, lightboxVersions, version);
+          applyView();
+        }
+      }
+
       function renderCards() {
         const pairs = DATA[currentTab];
         comparisonList.replaceChildren();
+        cardViews.clear();
 
         if (!pairs.length) {
           comparisonList.append(createElement('p', 'empty-state', '표시할 비교 사진이 없습니다.'));
@@ -1105,7 +1217,7 @@
           const card = createElement('article', 'comparison-card');
           const heading = createElement('header', 'cut-heading');
           const title = createElement('span', 'cut-title');
-          const cutIndex = createElement('span', 'cut-index', `${index + 1} / ${pairs.length}`);
+          const cutIndex = createElement('span', 'cut-index', `촬영 컷 ${index + 1} / ${pairs.length}`);
           const sequenceText = pair.order ? `${pair.order} · ${pair.id}` : pair.id;
           const comparisonPair = createElement('div', 'comparison-pair');
           const panels = panelsFor(pair);
@@ -1116,6 +1228,16 @@
           heading.append(title, cutIndex);
           comparisonPair.append(...panels.map((panel) => createComparisonPanel(panel, pair, index)));
           card.append(heading, comparisonPair);
+          if (panels.length >= 4) {
+            comparisonPair.classList.add('comparison-pair--carousel');
+            const controls = createVersionControls((step) => changeVersion(index, step));
+            const panelElements = [...comparisonPair.children];
+            cardViews.set(index, { panels: panelElements, controls });
+            comparisonPair.dataset.cardIndex = String(index);
+            panelElements.forEach((element) => { element.querySelector('img').draggable = false; });
+            showVersion(panelElements, controls, selectedVersions.get(index) || 0);
+            card.append(controls, createElement('p', 'carousel-hint', '사진을 좌우로 밀거나 이전·다음 버전 버튼으로 비교하세요.'));
+          }
           comparisonList.append(card);
         });
 
@@ -1125,6 +1247,8 @@
       function setActiveTab(tabName) {
         if (!Object.hasOwn(DATA, tabName) || tabName === currentTab) return;
         currentTab = tabName;
+        selectedVersions.clear();
+        cancelSwipe();
         activeIndex = 0;
         const activeTab = document.querySelector(`[role="tab"][data-tab="${currentTab}"]`);
 
@@ -1145,13 +1269,21 @@
         const sequenceText = pair.order ? `${pair.order} · ${pair.id}` : pair.id;
         const panels = panelsFor(pair);
         lightboxTitle.textContent = sequenceText;
-        lightboxIndex.textContent = `${activeIndex + 1} / ${pairs.length}`;
+        lightboxIndex.textContent = `촬영 컷 ${activeIndex + 1} / ${pairs.length}`;
         lightboxPair.classList.toggle('lightbox-pair--triple', panels.length === 3);
-        lightboxPair.replaceChildren(...panels.map((panel) => createLightboxPanel(panel, pair)));
+        const carousel = panels.length >= 4;
+        lightboxPair.classList.toggle('lightbox-pair--carousel', carousel);
+        lightboxVersions.hidden = !carousel;
+        lightboxPanels = panels.map((panel) => createLightboxPanel(panel, pair, carousel));
+        lightboxPair.replaceChildren(...lightboxPanels);
+        if (carousel) showVersion(lightboxPanels, lightboxVersions, selectedVersions.get(activeIndex) || 0);
+        document.getElementById('lightbox-help').textContent = carousel
+          ? '이전·다음 버전 버튼이나 좌우 방향키로 버전을 비교하세요. 100%에서는 사진을 좌우로 밀 수 있고, 확대 후에는 드래그로 이동합니다.'
+          : '휠로 확대하고 드래그하여 사진을 함께 이동할 수 있습니다.';
         applyView();
       }
 
-      function createLightboxPanel(panel, pair) {
+      function createLightboxPanel(panel, pair, deferLoad = false) {
         const panelElement = createElement('section', 'lightbox-panel');
         const label = createElement('p', 'lightbox-label', panel.label);
         const stage = createElement('div', 'lightbox-stage');
@@ -1169,7 +1301,8 @@
           error.hidden = false;
           stage.classList.add('has-error');
         });
-        image.src = encodeURI(panel.path);
+        if (deferLoad) image.dataset.src = panel.path;
+        else image.src = encodeURI(panel.path);
         zoomable.append(image);
         stage.append(zoomable, error);
         panelElement.append(label, stage);
@@ -1213,7 +1346,12 @@
 
       function navigatePair(step) {
         const pairs = DATA[currentTab];
+        cancelSwipe();
+        stopPanning({ pointerId: activePointerId });
         activeIndex = (activeIndex + step + pairs.length) % pairs.length;
+        selectedVersions.set(activeIndex, 0);
+        const view = cardViews.get(activeIndex);
+        if (view) showVersion(view.panels, view.controls, 0);
         resetView();
         renderLightbox();
       }
@@ -1247,7 +1385,13 @@
       resetViewButton.addEventListener('click', resetView);
       zoomInButton.addEventListener('click', () => adjustZoom(0.25));
       lightbox.addEventListener('close', () => {
-        if (lightboxOrigin && typeof lightboxOrigin.focus === 'function') lightboxOrigin.focus();
+        cancelSwipe();
+        const originCard = lightboxOrigin?.closest('.comparison-card');
+        const visibleStage = originCard && [...originCard.querySelectorAll('.photo-trigger')]
+          .find((element) => !element.closest('[hidden]'));
+        const focusTarget = lightboxOrigin?.isConnected && !lightboxOrigin.closest('[hidden]')
+          ? lightboxOrigin : visibleStage?.isConnected ? visibleStage : comparisonList;
+        focusTarget.focus();
         lightboxOrigin = null;
         isPanning = false;
         activePointerId = null;
@@ -1259,10 +1403,12 @@
           lightbox.close();
         } else if (event.key === 'ArrowLeft') {
           event.preventDefault();
-          navigatePair(-1);
+          if (lightboxPanels.length >= 4) changeVersion(activeIndex, -1);
+          else navigatePair(-1);
         } else if (event.key === 'ArrowRight') {
           event.preventDefault();
-          navigatePair(1);
+          if (lightboxPanels.length >= 4) changeVersion(activeIndex, 1);
+          else navigatePair(1);
         }
       });
       lightboxPair.addEventListener('wheel', (event) => {
@@ -1271,7 +1417,7 @@
         adjustZoom(event.deltaY < 0 ? 0.12 : -0.12);
       }, { passive: false });
       lightboxPair.addEventListener('pointerdown', (event) => {
-        if (!lightbox.open || zoom <= 1 || event.button !== 0) return;
+        if (!lightbox.open || zoom <= 1 || event.button !== 0 || !event.isPrimary || pressedPointers.size > 1) return;
         isPanning = true;
         activePointerId = event.pointerId;
         previousPointerX = event.clientX;
@@ -1290,6 +1436,78 @@
       });
       lightboxPair.addEventListener('pointerup', stopPanning);
       lightboxPair.addEventListener('pointercancel', stopPanning);
+
+      // Capture the photo stage so a normal tap still clicks its button.
+      // Suppress post-swipe clicks on the stable container after a version hides.
+      function cancelSwipe() {
+        if (!swipe) return;
+        const { captureTarget, pointerId } = swipe;
+        swipe = null;
+        if (captureTarget.hasPointerCapture(pointerId)) captureTarget.releasePointerCapture(pointerId);
+      }
+
+      function startSwipe(event, root, index) {
+        if (!root || !event.isPrimary || event.button !== 0 || pressedPointers.size > 1) return;
+        suppressedClick = null;
+        const captureTarget = event.target.closest('.photo-trigger') || event.target.closest('.lightbox-stage');
+        swipe = { root, captureTarget, index, pointerId: event.pointerId, x: event.clientX, y: event.clientY, moved: false, cancelled: false };
+        captureTarget.setPointerCapture(event.pointerId);
+      }
+
+      document.addEventListener('pointerdown', (event) => {
+        pressedPointers.add(event.pointerId);
+        // A new physical press is a new click, even immediately after a swipe.
+        suppressedClick = null;
+        if (swipe && swipe.pointerId !== event.pointerId) swipe.cancelled = true;
+        if (isPanning && activePointerId !== event.pointerId) stopPanning({ pointerId: activePointerId });
+      }, true);
+      document.addEventListener('pointermove', (event) => {
+        if (!swipe || swipe.pointerId !== event.pointerId) return;
+        const dx = event.clientX - swipe.x;
+        const dy = event.clientY - swipe.y;
+        if (Math.hypot(dx, dy) > 8) swipe.moved = true;
+        if (Math.abs(dy) >= 16 && Math.abs(dy) > Math.abs(dx)) swipe.cancelled = true;
+      }, true);
+      function finishSwipe(event) {
+        pressedPointers.delete(event.pointerId);
+        if (!swipe || swipe.pointerId !== event.pointerId) return;
+        const gesture = swipe;
+        const dx = event.clientX - gesture.x;
+        const dy = event.clientY - gesture.y;
+        const moved = gesture.moved || Math.hypot(dx, dy) > 8;
+        cancelSwipe();
+        if (moved) suppressedClick = { root: gesture.root, until: Date.now() + 800 };
+        if (event.type !== 'pointerup' || gesture.cancelled) return;
+        if (Math.abs(dx) >= 48 && Math.abs(dx) >= Math.abs(dy) * 1.25) {
+          changeVersion(gesture.index, dx < 0 ? 1 : -1);
+        }
+      }
+      document.addEventListener('pointerup', finishSwipe, true);
+      document.addEventListener('pointercancel', finishSwipe, true);
+      document.addEventListener('click', (event) => {
+        if (!suppressedClick || event.detail === 0) return;
+        if (Date.now() <= suppressedClick.until && suppressedClick.root.contains(event.target)) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        }
+        suppressedClick = null;
+      }, true);
+      comparisonList.addEventListener('pointerdown', (event) => {
+        if (!event.target.closest('.photo-trigger')) return;
+        const root = event.target.closest('.comparison-pair--carousel');
+        if (root) startSwipe(event, root, Number(root.dataset.cardIndex));
+      });
+      lightboxPair.addEventListener('pointerdown', (event) => {
+        if (lightbox.open && zoom === 1 && lightboxPanels.length >= 4 && event.target.closest('.lightbox-stage')) {
+          startSwipe(event, lightboxPair, activeIndex);
+        }
+      });
+      [comparisonList, lightboxPair].forEach((container) => {
+        container.addEventListener('lostpointercapture', (event) => {
+          if (swipe?.pointerId === event.pointerId) cancelSwipe();
+          if (activePointerId === event.pointerId) stopPanning(event);
+        });
+      });
 
       renderCards();
     })();
